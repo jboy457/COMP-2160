@@ -1,3 +1,14 @@
+//-----------------------------------------
+// NAME: your name 
+// STUDENT NUMBER: 7980132
+// COURSE: COMP 2160, SECTION: A01
+// INSTRUCTOR: Saulo Lectures 
+// ASSIGNMENT: assignment 1, QUESTION: question 1
+// 
+// REMARKS: extract the nth word from text file.
+//
+//-----------------------------------------
+
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
@@ -28,23 +39,41 @@ int main() {
         extractWord(buffer, numWord, result);
         printf("Word #%d is: %s\n", numWord, result);
     }
-    printf("\nEnd of processing\n");
+    printf("\nProgram completed normally.\n");
     return 0;
 }
 
+
+//------------------------------------------------------
+// extractWord
+//
+// PURPOSE: extracts nth word for each line.
+// INPUT PARAMETERS:
+// theLine - The line to extract word from.
+// word - the nth value
+// result - result to be updated with the nth word
+// OUTPUT PARAMETERS:
+// result - the extracted word.
+//------------------------------------------------------
 void extractWord(char *theLine, int word, char *result) {
     int start;
     int end;
     int spaces = 1;
+    int lineLength = strlen(theLine);
 
-    for(start = 0; start < strlen(theLine) && spaces < word; start++) {
+     // search for the nth non-blank character
+    for(start = 0; start < lineLength && spaces < word; start++) {
         if(isspace(theLine[start]) != 0) {
             spaces++;
         }
     }
+    
+// only need to continue if we haven't gone past the end of the string
+    if(start < lineLength) {
+        // the next blank character is the end
+        for(end = start; end < lineLength && isspace(theLine[end]) == 0; end++);
 
-    if(start < strlen(theLine)) {
-        for(end = start; end < strlen(theLine) && isspace(theLine[end]) == 0; end++);
+        // we now have the word 
         strncpy(result, theLine + start, end);
         result[end - start] = '\0';
     }
