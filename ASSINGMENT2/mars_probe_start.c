@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include<ctype.h>
+#include <ctype.h>
 //-------------------------------------------------------------------------------------
 // CONSTANTS and TYPES
 //-------------------------------------------------------------------------------------
@@ -59,12 +59,12 @@ typedef struct ZONE
   int zoneRows;
   int zoneCols;
   // Add the information about the zone you want to store
-  int avaialble;
-  int richArea;
-  int accessible;
-  int unreadable;
-  int esitmated;
-  int totalAvailable;
+  double avaialble;
+  double richArea;
+  double accessible;
+  double unreadable;
+  double esitmated;
+  double totalAvailable;
 
 } zoneData;
 
@@ -159,7 +159,6 @@ int main(int argc, char *argv[])
     printf("====================================\n");
   }
   printProbeSummary();
-  free(probe);
   printf("End of processing");
   return EXIT_SUCCESS;
 }
@@ -168,24 +167,51 @@ int main(int argc, char *argv[])
 // Cell routines
 //////////////////////////////////////////////
 
-
+//------------------------------------------------------
+// nextCell
+//
+// PURPOSE: Retrieves the next cell to be probed.
+//
+// INPUT: None
+//
+// OUTPUT: The next Cell to be probed.
+//-----------------------------------------------------
 Cell nextCell() 
 {
-  Cell* next = NULL;
-  if(!noMoreCells()) {
-    next = &top->cell;
-  } else {
-    next = (Cell*)malloc(sizeof(Cell));
-    next->row = -1;
-    next->column = -1;
-  }
-  assert(next != NULL);
-  return *next;
+  // Check if list is not empty
+  checkState();
+
+  Cell nextCell = top->cell;
+  top = top->next;
+
+  checkCell(nextCell);
+  return nextCell;
 }
 
 
-Cell makeCell(const int row, const int col) {
+//------------------------------------------------------
+// makeCell
+//
+// PURPOSE: Creates a Cell with specified row and column values.
+//
+// INPUT: 
+// - row: The row index of the cell.
+// - col: The column index of the cell.
+//
+// OUTPUT: 
+// - Cell: The constructed Cell with the given row and column.
+//------------------------------------------------------
+Cell makeCell(const int row, const int col) 
+{
+  // Check if row and column is valid
+  assert(row >= 0);
+  assert(col >= 0);
+
   Cell* newCell = (Cell*)malloc(sizeof(Cell));
+  
+  // Check if memoery is truely allocated
+  assert(newCell != NULL);
+
   newCell->row = row;
   newCell->column = col;
 
@@ -194,15 +220,13 @@ Cell makeCell(const int row, const int col) {
 
 
 Boolean noMoreCells() {
+  // Check the cell is empty.
   return top == NULL ? true : false;
 }
 
-//////////////////////////////////////////////
-// List routines
-//////////////////////////////////////////////
 
 //------------------------------------------------------
-// pushProbe
+// addCell
 //
 // PURPOSE: Pushes a cell node onto the probe.
 //
@@ -212,9 +236,9 @@ Boolean noMoreCells() {
 // OUTPUT PARAMETERS:
 // None
 //------------------------------------------------------
-void pushProbe(const Cell cell) {
+void addCell(const Cell cell) {
   // Check if the cell is not empty
- checkCell(cell);
+  checkCell(cell);
 
   CellNode* newCellNode = (CellNode*)malloc(sizeof(CellNode));
 
@@ -229,18 +253,45 @@ void pushProbe(const Cell cell) {
   assert(top == newCellNode);
 }
 
-void popProbe() {
-  // Make sure list isnt empty.
-  assert(top != NULL);
+//////////////////////////////////////////////
+// List routines
+//////////////////////////////////////////////
 
-  if(top != NULL) {
-    CellNode* cellToRemove = top;
-    top = top->next;
-    // Confirm that top now point to its next value in the list
-    assert(top != cellToRemove);
-    free(cellToRemove);
+
+//------------------------------------------------------
+// insertInOrder
+//
+// PURPOSE: Inserts the specified zone into the probe data in an ordered manner.
+//
+// INPUT PARAMETERS:
+// - zone: A pointer to the probed zoneData structure to be inserted.
+//
+// OUTPUT PARAMETERS:
+// None
+//------------------------------------------------------
+void insertInOrder(zoneData *zone) 
+{
+  checkzone(zone);
+  probeData* curr = probe;
+  probeData* prev = NULL;
+
+  while (curr != NULL && curr->probedZone->totalAvailable > zone->totalAvailable) {
+      assert(curr != NULL);
+      prev = curr;
+      curr = curr->next;   
+  }
+
+  probeData* newProbe = (probeData*)malloc(sizeof(probeData));
+  newProbe->probedZone = zone;
+
+  // printZone(newProbe->probedZone);
+
+  if(prev == NULL) {
+    newProbe->next = curr;
+    probe = newProbe;
   } else {
-    printf("Probe list is empty.");
+    newProbe->next = curr;
+    prev->next = newProbe;
   }
 }
 
@@ -321,6 +372,10 @@ Boolean loadZone()
 
     // Probe Zone Process.
     exploreZone(zoneToLoad);
+    printZoneSummary(zoneToLoad);
+    printf("\nProbed Mapping: \n");
+    printZone(zoneToLoad);
+
     estimateResources(zoneToLoad);
     insertInOrder(zoneToLoad);
   }
@@ -364,40 +419,41 @@ zoneData *makeZone() {
 // OUTPUT PARAMETERS:
 // - void
 //------------------------------------------------------
-void exploreZone(zoneData *zone) {
+void exploreZone(zoneData *zone) 
+{
   // Pre condidtion check on zone data.
   checkzone(zone);
   validProbeCell(zone);
 
   // Initalize linked list with probe cell i.e start cell.
-  pushProbe(zone->probe);
+  addCell(zone->probe);
 
   // Check if cell node is already initailzed
   assert(top != NULL);
 
-  Cell* currentCell = &zone->probe;
 
   // NOTE: if probe has been checked 
   while(!noMoreCells()) {
+    // list shouldnt not be empty
+    checkState();
+
+    Cell currentCell = nextCell();
+
+    checkCell(currentCell);
+
     // Compute resources for zone and visit it.
-    computeResource(zone, *currentCell);
-    zone->zoneArea[currentCell->row][currentCell->column] = VISITED;
+    computeResource(zone, currentCell);
+    zone->zoneArea[currentCell.row][currentCell.column] = VISITED;
     
     // Check is cell has been truely marked as visited.
-    assert(zone->zoneArea[currentCell->row][currentCell->column] == VISITED);
-
-    // Remove item probbed Cell form list
-    popProbe();
+    assert(zone->zoneArea[currentCell.row][currentCell.column] == VISITED);
     
     // search and add free cells around to cell node.
-    addToProbe(zone, *currentCell);
-
-    Cell temp = nextCell();
-    currentCell = &temp;
-
-    assert(currentCell->row == temp.row);
-    assert(currentCell->column == temp.column);
+    addToProbe(zone, currentCell);
   }
+
+  // make sure its has probed all.
+   assert(top == NULL);
 }
 
 //------------------------------------------------------
@@ -412,7 +468,8 @@ void exploreZone(zoneData *zone) {
 // OUTPUT PARAMETERS:
 // None
 //------------------------------------------------------
-void addToProbe(zoneData *zone, Cell currentCell) {
+void addToProbe(zoneData *zone, Cell currentCell) 
+{
   // Pre-condtional check to make sure zone and currentcell is valid.
   checkzone(zone);
   checkCell(currentCell);
@@ -436,7 +493,7 @@ void addToProbe(zoneData *zone, Cell currentCell) {
           Cell newCell = makeCell(currentCell.row - 1, currentCell.column);
           checkCell(newCell);
           
-          pushProbe(newCell);
+          addCell(newCell);
       } 
       
       // Check DOWN and push if resource exist
@@ -446,7 +503,7 @@ void addToProbe(zoneData *zone, Cell currentCell) {
         ) {
           Cell newCell = makeCell(currentCell.row + 1, currentCell.column);
           checkCell(newCell); 
-          pushProbe(newCell);
+          addCell(newCell);
       } 
       
       // Check LEFT
@@ -456,7 +513,7 @@ void addToProbe(zoneData *zone, Cell currentCell) {
         ) {
           Cell newCell = makeCell(currentCell.row, currentCell.column - 1);
           checkCell(newCell);
-          pushProbe(newCell);
+          addCell(newCell);
       }
       
       // Check RIGHT
@@ -466,7 +523,7 @@ void addToProbe(zoneData *zone, Cell currentCell) {
         ) {
           Cell newCell = makeCell(currentCell.row, currentCell.column + 1);
           checkCell(newCell);
-          pushProbe(newCell);
+          addCell(newCell);
       }
     }
 }
@@ -483,7 +540,8 @@ void addToProbe(zoneData *zone, Cell currentCell) {
 // OUTPUT PARAMETERS:
 // None
 //------------------------------------------------------
-void computeResource(zoneData *zone, Cell rcell) {
+void computeResource(zoneData *zone, Cell rcell) 
+{
   // Pre condidtion check on zone data and cell is valid.
   checkzone(zone);
   checkCell(rcell);
@@ -510,7 +568,8 @@ void computeResource(zoneData *zone, Cell rcell) {
   }
 }
 
-void estimateResources(zoneData *zone) {
+void estimateResources(zoneData *zone) 
+{
   // Check if zone is valid.
   checkzone(zone);
 
@@ -533,7 +592,8 @@ void estimateResources(zoneData *zone) {
 // OUTPUT PARAMETERS:
 // Returns a Boolean value indicating if the character is a resource.
 //------------------------------------------------------
-Boolean isResource(char ch) {
+Boolean isResource(char ch) 
+{
   assert(ch != '\0');
 
   // Resource range.
@@ -555,69 +615,63 @@ Boolean isResource(char ch) {
 }
 
 //------------------------------------------------------
-// insertInOrder
+// printZone
 //
-// PURPOSE: Inserts the specified zone into the probe data in an ordered manner.
-//
+// PURPOSE: Prints a zone summary,
 // INPUT PARAMETERS:
-// - zone: A pointer to the probed zoneData structure to be inserted.
+// - None
 //
 // OUTPUT PARAMETERS:
-// None
-//------------------------------------------------------
-void insertInOrder(zoneData *zone) {
-  checkzone(zone);
-  probeData* curr = probe;
-  probeData* prev = NULL;
-
-  while (curr != NULL && curr->probedZone->totalAvailable > zone->totalAvailable) {
-      assert(curr != NULL);
-      prev = curr;
-      curr = curr->next;   
-  }
-
-  probeData* newProbe = (probeData*)malloc(sizeof(probeData));
-  newProbe->probedZone = zone;
-
-  // printZone(newProbe->probedZone);
-
-  if(prev == NULL) {
-    newProbe->next = curr;
-    probe = newProbe;
-  } else {
-    newProbe->next = curr;
-    prev->next = newProbe;
-  }
-}
-
-void printZoneSummary(zoneData *zone) {
+// Returns void; prints zone summary to standard output.
+//--------------------------------------------------
+void printZoneSummary(zoneData *zone) 
+{
   checkzone(zone);
 
   printf("\nSummary Zone %d: \n", zone->zoneID);
-  printf("-> Avaialble areas: %d \n", zone->avaialble);
-  printf("-> Resource rich areas: %d \n", zone->richArea);
-  printf("-> Resource accessible: %d \n", zone->accessible);
-  printf("-> Resource unreadable: %d \n", zone->unreadable);
-  printf("-> Esitmated potential resources: %d \n", zone->esitmated);
-  printf("-> Total resource availability: %d \n", zone->totalAvailable);
-
+  printf("-> Avaialble areas: %.0f \n", zone->avaialble);
+  printf("-> Resource rich areas: %.0f \n", zone->richArea);
+  printf("-> Resource accessible: %.0f \n", zone->accessible);
+  printf("-> Resource unreadable: %.0f \n", zone->unreadable);
 }
 
 
-
+//------------------------------------------------------
+// printProbeSummary
+//
+// PURPOSE: Prints a probe summary of probes,
+// INPUT PARAMETERS:
+// - None
+//
+// OUTPUT PARAMETERS:
+// Returns void; prints probe summary to standard output.
+//--------------------------------------------------
 void printProbeSummary() {
+  printf("\n===================  QUESTION 2 ============================= \n");
   probeData* curr = probe;
 
   while(curr != NULL) {
     printZoneSummary(curr->probedZone);
-    printf("\nProbed Mapping: \n");
-    printZone(curr->probedZone);
+
+    printf("-> Esitmated potential resources: %.2f \n", curr->probedZone->esitmated);
+    printf("-> Total resource availability: %.2f \n", curr->probedZone->totalAvailable);
     curr = curr->next;
-    // free each probe after printing summary
-    // free(curr);
   }
+  free(top);
+  free(probe);
 }
 
+//------------------------------------------------------
+// printZone
+//
+// PURPOSE: Prints the maze of a specific zone.
+//
+// INPUT PARAMETERS:
+// - zone: Pointer to a zoneData struct containing zone information.
+//
+// OUTPUT PARAMETERS:
+// Returns void; prints zone maze to standard output.
+//---------------------------------------------------
 void printZone(zoneData *zone) {
   checkzone(zone);
 
@@ -635,16 +689,26 @@ void printZone(zoneData *zone) {
 // DbC routines
 //////////////////////////////////////////////
 
-void checkzone(zoneData *zone) {
+// Check if zone is empty
+void checkzone(zoneData *zone) 
+{
   assert(zone != NULL);
 }
 
-void validProbeCell(zoneData *zone) {
+// Check if zone has had landing sapce
+void validProbeCell(zoneData *zone) 
+{
  checkCell(zone->probe);
-
 }
 
-void checkCell(Cell cell) {
-  assert(cell.row > 0);
-  assert(cell.column > 0);
+// Check if cell has valid value.
+void checkCell(Cell cell) 
+{
+  assert(cell.row >= 0);
+  assert(cell.column >= 0);
+}
+
+// Check if top is not NUll
+void checkState() {
+  assert(top != NULL);
 }
