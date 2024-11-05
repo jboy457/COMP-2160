@@ -314,6 +314,7 @@ void insertInOrder(zoneData *zone)
 //------------------------------------------------------
 Boolean loadZone() 
 {
+  Boolean isLoaded = false;
   char line[BUFFERSIZE];
   char zoneName[BUFFERSIZE];
 
@@ -323,19 +324,30 @@ Boolean loadZone()
   // Check if memory is allocated to new zone to load.
   checkzone(zoneToLoad);
 
+  if(feof(stdin)) {
+    free(zoneToLoad);
+    return isLoaded;
+  }
+
+  assert(!feof(stdin));
+
   // Read Zone Name and ID
   if(fgets(line, BUFFERSIZE, stdin) != NULL) {
     if(sscanf(line, "%s %d", zoneName, &zoneToLoad->zoneID) != 2) {
       printf("Error zone format inputed.\n");
-      return false;
-    };
-  }
+      return isLoaded;
+    }
+  } else {
+    return isLoaded;
+  } 
+
+  
 
   // Read Rows and Column
   if(fgets(line, BUFFERSIZE, stdin) != NULL) {
     if(sscanf(line, "%d %d", &zoneToLoad->zoneRows, &zoneToLoad->zoneCols) != 2) {
       printf("Error zone row and column format inputed.\n");
-      return false;
+      return isLoaded;
     };
   }
   
@@ -378,14 +390,9 @@ Boolean loadZone()
 
     estimateResources(zoneToLoad);
     insertInOrder(zoneToLoad);
+    isLoaded = true;
   }
-
-
-  if(feof(stdin)) {
-    return false;
-  } else {
-    return true;
-  }  
+  return isLoaded;
 }
 
 //------------------------------------------------------
@@ -584,7 +591,7 @@ void estimateResources(zoneData *zone)
 //------------------------------------------------------
 // isResource
 //
-// PURPOSE: Returns TRUE if the character represents a resource; otherwise, FALSE.
+// PURPOSE: Returns TRUE if the character represents a resource; otherwise, false.
 //
 // INPUT PARAMETERS:
 // - ch: The character to be checked.
